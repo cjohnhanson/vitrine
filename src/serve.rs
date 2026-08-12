@@ -1,11 +1,12 @@
-//! `vitrine serve`: static files from the repo root plus the response
-//! inbox. Everything else about an artifact works under any static
-//! server; this adds only the round-trip.
+//! `vitrine serve`: serve the static files of the repo root, and run
+//! the response inbox. Any static server does the other artifact work.
+//! This command adds the round-trip only.
 //!
-//! POST /respond/<slug> with a JSON body lands in
-//! `.vitrine/<slug>/responses/<stamp>.json` and `latest.json`, and one
-//! line per response goes to stdout (`response saved: <slug>`) so a
-//! watcher can notify an agent.
+//! A POST to /respond/<slug> with a JSON body goes to
+//! `.vitrine/<slug>/responses/<stamp>.json` and to `latest.json`. The
+//! server also writes one line for each response to stdout
+//! (`response saved: <slug>`). A watcher reads that line, then notifies
+//! an agent.
 
 use std::io::Read as _;
 use std::path::{Component, Path, PathBuf};
@@ -13,7 +14,7 @@ use std::path::{Component, Path, PathBuf};
 use percent_encoding::percent_decode_str;
 use tiny_http::{Header, Method, Response, Server};
 
-const MAX_BODY: usize = 1 << 20; // 1 MiB response ceiling
+const MAX_BODY: usize = 1 << 20; // the maximum response body size, 1 MiB
 
 pub fn serve(repo: &Path, port: u16) -> std::io::Result<()> {
     let server =
@@ -58,8 +59,8 @@ enum Outcome {
     Error(u16, &'static str),
 }
 
-/// Map a request path to a repo file, refusing traversal. Public and
-/// pure-ish for direct testing.
+/// Map a request path to a repo file. Refuse a path that goes above the
+/// repo root. This function is public, so a test calls it directly.
 #[must_use]
 pub fn sanitize(repo: &Path, url_path: &str) -> Option<PathBuf> {
     let path = url_path.split('?').next().unwrap_or("");
@@ -102,7 +103,7 @@ fn handle_respond(repo: &Path, slug: &str, request: &mut tiny_http::Request) -> 
     }
     let artifact = repo.join(".vitrine").join(slug);
     if !artifact.is_dir() {
-        return Outcome::Error(404, "no such artifact");
+        return Outcome::Error(404, "no artifact with that slug");
     }
     let mut body = String::new();
     if request
@@ -112,24 +113,25 @@ fn handle_respond(repo: &Path, slug: &str, request: &mut tiny_http::Request) -> 
         .is_err()
         || body.len() > MAX_BODY
     {
-        return Outcome::Error(400, "unreadable or oversized body");
+        return Outcome::Error(400, "the body is unreadable or too large");
     }
     if serde_json::from_str::<serde_json::Value>(&body).is_err() {
-        return Outcome::Error(400, "body must be JSON");
+        return Outcome::Error(400, "the body must be JSON");
     }
 
     let responses = artifact.join("responses");
     if std::fs::create_dir_all(&responses).is_err() {
-        return Outcome::Error(500, "cannot write responses");
+        return Outcome::Error(500, "cannot write the response");
     }
     let stamp = std::env::var("VITRINE_STAMP").unwrap_or_else(|_| {
         std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).map_or_else(|_| "0".to_string(), |d| d.as_millis().to_string())
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or_else(|_| "0".to_string(), |d| d.as_millis().to_string())
     });
     if std::fs::write(responses.join(format!("{stamp}.json")), &body).is_err()
         || std::fs::write(artifact.join("latest.json"), &body).is_err()
     {
-        return Outcome::Error(500, "cannot write responses");
+        return Outcome::Error(500, "cannot write the response");
     }
     Outcome::Saved(slug.to_string())
 }
@@ -159,7 +161,7 @@ mod tests {
         assert!(sanitize(repo, "/a/../../etc/passwd").is_none());
         assert!(
             sanitize(repo, "/%2e%2e/etc/passwd").is_none(),
-            "encoded dots"
+            "the dots are percent-encoded"
         );
         assert_eq!(
             sanitize(repo, "/a/b.js?v=1"),
@@ -168,7 +170,7 @@ mod tests {
         assert_eq!(
             sanitize(repo, "/.vitrine/x/../y/index.html"),
             Some(PathBuf::from("/repo/.vitrine/x/../y/index.html")),
-            "interior .. that stays under the root is allowed"
+            "an interior .. that stays under the root is allowed"
         );
     }
 }

@@ -40,14 +40,15 @@
 <body>
 <h1>Demo plan</h1>
 
-<!-- Transclude canonical markdown; `vitrine sync` bakes a static copy
-     into the element and the runtime re-renders it live when served.
-     Resolve scheme refs to relative paths with: vitrine resolve tisket:<id>#<anchor>
+<!-- Transclude the canonical markdown. `vitrine sync` bakes a static
+     copy into the element. The runtime renders the copy live when a
+     server serves the page. To make a relative path from a scheme
+     reference, run: vitrine resolve tisket:<id>#<anchor>
 <md-section ref="../../.tisket/v0.1.0/example.md#goal"></md-section>
 -->
 
-<!-- Round-trip form; responses land in this artifact's responses/ dir
-     when served by `vitrine serve`.
+<!-- A round-trip form. Under `vitrine serve`, each response goes to
+     the responses/ directory of this artifact.
 <form data-respond>
   <label>Decision for <code>issue#anchor</code>:
     <select name="issue#anchor"><option>accept</option><option>reject</option></select>

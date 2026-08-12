@@ -1,8 +1,8 @@
-/* vitrine runtime — <md-section> transclusion + response forms.
- * Appended after the vendored commonmark.js (window.commonmark).
- * Contract shared with the Rust side (extract.rs / render.rs):
- * plain CommonMark, front matter stripped, ATX headings only,
- * fence-aware, duplicate slugs suffixed -1, -2, … */
+/* The vitrine runtime: <md-section> transclusion and response forms.
+ * This code comes after the vendored commonmark.js (window.commonmark).
+ * It shares one contract with the Rust code (extract.rs, render.rs):
+ * plain CommonMark; the front matter is stripped; ATX headings only;
+ * code fences are known; a duplicate slug gets a -1, -2, … suffix. */
 (() => {
 	const stripFrontMatter = (md) => {
 		if (!md.startsWith("---\n")) return md;
@@ -68,7 +68,7 @@
 
 	class MdSection extends HTMLElement {
 		async connectedCallback() {
-			if (!/^https?:$/.test(location.protocol)) return; // file://: baked copy stands
+			if (!/^https?:$/.test(location.protocol)) return; // under file://, keep the baked copy
 			const ref = this.getAttribute("ref");
 			if (!ref) return;
 			const [path, anchor] = ref.split("#");
@@ -89,7 +89,7 @@
 	}
 	customElements.define("md-section", MdSection);
 
-	/* Forms marked data-respond POST their fields as JSON to the inbox. */
+	/* A form with data-respond sends its fields to the inbox as JSON. */
 	const slug = () => {
 		const m = /\/\.vitrine\/([a-z0-9-]+)\//.exec(location.pathname);
 		return m ? m[1] : null;
@@ -110,7 +110,7 @@
 		const s = slug();
 		if (!s) {
 			status.textContent =
-				"not served from a .vitrine artifact path; cannot submit";
+				"cannot submit: the page is not served from a .vitrine artifact path";
 			return;
 		}
 		const payload = Object.fromEntries(new FormData(form).entries());
@@ -123,7 +123,7 @@
 			if (!res.ok) throw new Error(await res.text());
 			status.textContent = "response recorded";
 		} catch (err) {
-			status.textContent = `submit failed: ${err} (is vitrine serve running?)`;
+			status.textContent = `submit failed: ${err}. Make sure that vitrine serve is running.`;
 		}
 	});
 })();

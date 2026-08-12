@@ -1,9 +1,11 @@
 //! Markdown rendering with a fixed, deterministic profile.
 //!
-//! Plain `CommonMark`, no extensions that alter output structure — the
-//! browser-side renderer (vendored commonmark.js) must produce the same
-//! DOM, and renderer parity is a tested property. Header anchors are
-//! computed internally for extraction, never emitted into HTML.
+//! The profile is plain `CommonMark`. It uses no extension that changes
+//! the structure of the output. The browser-side renderer is the
+//! vendored commonmark.js, and it must make the same DOM. A test holds
+//! the two renderers to that parity. This module computes a heading
+//! anchor internally, for extraction. It never emits an anchor into the
+//! HTML.
 
 use comrak::{markdown_to_html, Options};
 
@@ -14,9 +16,9 @@ pub fn render(markdown: &str) -> String {
     markdown_to_html(markdown, &options)
 }
 
-/// Strip a leading YAML front-matter block (`---\n...\n---\n`).
-/// commonmark.js knows nothing of front matter, so both sides strip it
-/// before rendering.
+/// Strip a leading YAML front matter block (`---\n...\n---\n`).
+/// commonmark.js does not know about front matter. Thus both renderers
+/// strip the block before they render.
 #[must_use]
 pub fn strip_front_matter(markdown: &str) -> &str {
     let Some(rest) = markdown.strip_prefix("---\n") else {
@@ -26,11 +28,12 @@ pub fn strip_front_matter(markdown: &str) -> &str {
         .map_or(markdown, |end| &rest[end + "\n---\n".len()..])
 }
 
-/// Slug for a heading — the shared contract with the JS runtime.
+/// Make the slug for a heading. The JS runtime shares this contract.
 ///
-/// Lowercase, alphanumerics kept, spaces and runs of other characters
-/// collapse to single hyphens, trimmed of hyphens. Duplicate slugs get
-/// `-1`, `-2`… suffixes (handled by the caller, in document order).
+/// The slug is lowercase. It keeps the alphanumerics. It collapses each
+/// run of other characters to one hyphen. It has no hyphen at the start
+/// or at the end. Duplicate slugs get a `-1`, `-2`, … suffix. The
+/// caller adds that suffix, in document order.
 #[must_use]
 pub fn slugify(heading: &str) -> String {
     let mut out = String::with_capacity(heading.len());

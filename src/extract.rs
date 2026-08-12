@@ -1,10 +1,12 @@
-//! Section extraction: markdown + anchor → the section's markdown span.
+//! Section extraction: a markdown text and an anchor give the markdown
+//! span of one section.
 //!
-//! ATX headings only (`#` through `######`), fence-aware so `#` lines
-//! inside code blocks are never headings. A section runs from its
-//! heading line to the next heading of the same or higher level.
-//! Duplicate heading slugs get `-1`, `-2`… suffixes in document order —
-//! the same contract the JS runtime implements.
+//! This module reads ATX headings only (`#` through `######`). It knows
+//! about code fences, so a `#` line in a code block is never a heading.
+//! A section starts at its heading line. It stops at the next heading
+//! of the same level or a higher level. Duplicate heading slugs get a
+//! `-1`, `-2`, … suffix in document order. The JS runtime implements
+//! the same contract.
 
 use crate::render::{slugify, strip_front_matter};
 
@@ -37,7 +39,7 @@ fn headings(lines: &[&str]) -> Vec<Heading> {
         }
         let rest = &trimmed[hashes..];
         if !rest.is_empty() && !rest.starts_with(' ') {
-            continue; // #hashtag, not a heading
+            continue; // a hashtag, not a heading
         }
         let title = rest.trim().trim_end_matches(['#', ' ']);
         let base = slugify(title);
@@ -57,8 +59,9 @@ fn headings(lines: &[&str]) -> Vec<Heading> {
     out
 }
 
-/// Extract the section addressed by `anchor`. Returns the markdown span
-/// including the heading line, trailing blank lines trimmed.
+/// Extract the section that `anchor` addresses. The result is the
+/// markdown span. It includes the heading line, and it has no trailing
+/// blank lines.
 #[must_use]
 pub fn extract(markdown: &str, anchor: &str) -> Option<String> {
     let body = strip_front_matter(markdown);
@@ -75,7 +78,8 @@ pub fn extract(markdown: &str, anchor: &str) -> Option<String> {
     Some(format!("{}\n", section.trim_end()))
 }
 
-/// List every anchor in the document, in order. `vitrine extract --list`.
+/// List each anchor in the document, in order. `vitrine extract <file>`
+/// prints this list.
 #[must_use]
 pub fn anchors(markdown: &str) -> Vec<String> {
     let body = strip_front_matter(markdown);
@@ -93,8 +97,8 @@ mod tests {
     fn section_spans_to_same_or_higher_level() {
         let s = extract(DOC, "alpha").unwrap();
         assert!(s.starts_with("## Alpha"));
-        assert!(s.contains("### Deep"), "subsections included");
-        assert!(!s.contains("## Beta"), "stops at sibling");
+        assert!(s.contains("### Deep"), "the subsections are included");
+        assert!(!s.contains("## Beta"), "the section stops at the sibling");
     }
 
     #[test]

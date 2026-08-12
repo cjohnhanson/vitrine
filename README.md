@@ -3,45 +3,49 @@
 > A vitrine is a glass display case: finished work, on view, behind
 > glass — you look at it; you don't reach in and smudge it.
 
-Interactive artifacts for plaintext repos. HTML pages that *transclude*
-sections of canonical markdown — tisket issues, zettel notes, any repo
-file — so content is written once and rendered wherever it's needed,
-plus a response inbox so artifacts can carry forms whose answers land
-back in the repo as files agents can read.
+Interactive artifacts for plaintext repos. An artifact is an HTML page
+that *transcludes* sections of canonical markdown. The markdown is a
+tisket issue, a zettel note, or any repo file. You write the content
+once, and the artifact renders it where you need it. An artifact can
+also carry a response form. The answers go back into the repo as files
+that an agent reads.
 
 ## The idea
 
-Plaintext is the source of truth; some deliverables want to be visual
-and interactive anyway (plans with diagrams, review findings with
-accept/reject toggles, side-by-side comparisons). Copying markdown into
-HTML creates two versions that drift. vitrine's `<md-section>` element
-transcludes instead:
+The plaintext is the source of truth. Some deliverables must be visual
+and interactive: a plan with diagrams, review findings with accept and
+reject controls, a side-by-side comparison. If you copy the markdown
+into HTML, you make two versions, and the two versions drift. The
+vitrine `<md-section>` element transcludes the markdown instead:
 
 ```html
 <md-section ref="../../.tisket/v0.1.0/ab12-the-issue.md#goal"></md-section>
 ```
 
-The artifact never holds its own copy of content — drift is
-structurally impossible.
+The artifact keeps no copy of the content. Thus the content cannot
+drift.
 
 ## Portability ladder
 
-1. **file:// with no JS** — `vitrine sync` bakes rendered sections into
-   the page as plain HTML (derived, regenerated, never hand-edited).
-2. **Any static server** — the runtime re-renders live from the
-   markdown; edits appear on refresh. No resolver, no backend: refs are
-   relative paths, resolved at authoring time by `vitrine resolve`.
-3. **`vitrine serve`** — adds the response inbox:
-   `<form data-respond>` submissions land in
-   `.vitrine/<slug>/responses/` and `latest.json`, with a
-   `response saved: <slug>` stdout line per submission for watchers.
+1. **file:// with no JS**: `vitrine sync` bakes the rendered sections
+   into the page as plain HTML. The baked content is derived. Do not
+   edit it by hand.
+2. **Any static server**: the runtime renders the markdown live. Your
+   edits show after a page refresh. A ref is a relative path, so the
+   artifact needs no resolver and no backend. Make the relative paths
+   at authoring time with `vitrine resolve`.
+3. **`vitrine serve`**: adds the response inbox. A
+   `<form data-respond>` submission goes to
+   `.vitrine/<slug>/responses/` and to `latest.json`. The server writes
+   one `response saved: <slug>` line to stdout for each submission. A
+   watcher reads that line.
 
 ## Commands
 
 ```
-vitrine new <slug>          # scaffold .vitrine/<slug>/ (page + runtime)
+vitrine new <slug>          # make .vitrine/<slug>/ (page + runtime)
 vitrine resolve tisket:ab12#goal
-vitrine sync [slug]         # bake transclusions
+vitrine sync [slug]         # bake the transclusions
 vitrine serve [--port N]    # static files + response inbox (default 4114)
 vitrine extract <md> [anchor]
 vitrine render <md>         # the fixed rendering profile, for parity checks
@@ -50,14 +54,15 @@ vitrine docs [topic]
 
 ## Rendering contract
 
-Plain CommonMark on both sides — comrak in the CLI, the vendored
-commonmark.js reference implementation in the browser — front matter
-stripped, no emitted heading ids. Renderer parity is byte-for-byte and
-tested (the missouri suite diffs both renderers' output on the same
-input). Anchors are heading slugs; duplicates get `-1`, `-2`… suffixes.
+Both renderers use plain CommonMark: comrak in the CLI, and the
+vendored commonmark.js reference implementation in the browser. Both
+renderers strip the front matter. Neither renderer emits heading ids.
+The two renderers agree byte for byte. A test holds them to it: the
+missouri suite compares the output of both renderers on one input. An
+anchor is a heading slug. Duplicate slugs get a `-1`, `-2`, … suffix.
 
 ## Status
 
-Working: transclusion (bake + live), scaffolding, resolve/extract,
-response inbox, bundled docs. Tested by a missouri state-graph suite
-and cargo unit tests.
+These parts work: transclusion, baked and live; scaffolding; resolve
+and extract; the response inbox; and the bundled docs. A missouri
+state-graph suite and the cargo unit tests cover them.

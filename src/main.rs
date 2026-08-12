@@ -1,5 +1,6 @@
-//! vitrine CLI. Subcommands: new, sync, serve, resolve, extract,
-//! render, docs. Exit codes: 0 success, 1 failure.
+//! The vitrine CLI. The subcommands are new, sync, serve, resolve,
+//! extract, render, and docs. Exit code 0 means success. Exit code 1
+//! means failure.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -40,7 +41,7 @@ fn run_new(args: &[String]) -> ExitCode {
         return fail("usage: vitrine new <slug>");
     };
     let Some(repo) = cwd() else {
-        return fail("cannot resolve working directory");
+        return fail("cannot get the working directory");
     };
     match scaffold::new(&repo, slug) {
         Ok(dir) => {
@@ -53,14 +54,14 @@ fn run_new(args: &[String]) -> ExitCode {
 
 fn run_sync(args: &[String]) -> ExitCode {
     let Some(repo) = cwd() else {
-        return fail("cannot resolve working directory");
+        return fail("cannot get the working directory");
     };
     let root = repo.join(".vitrine");
     let slugs: Vec<String> = if let Some(slug) = args.first() {
         vec![slug.clone()]
     } else {
         let Ok(entries) = std::fs::read_dir(&root) else {
-            return fail(".vitrine/ not found (run `vitrine new <slug>` first)");
+            return fail("no .vitrine/ directory (run `vitrine new <slug>` first)");
         };
         let mut all: Vec<String> = entries
             .filter_map(Result::ok)
@@ -106,7 +107,7 @@ fn run_serve(args: &[String]) -> ExitCode {
         }
     }
     let Some(repo) = cwd() else {
-        return fail("cannot resolve working directory");
+        return fail("cannot get the working directory");
     };
     match serve::serve(&repo, port) {
         Ok(()) => ExitCode::SUCCESS,
@@ -119,7 +120,7 @@ fn run_resolve(args: &[String]) -> ExitCode {
         return fail("usage: vitrine resolve <tisket:id|zettel:id|file:path>[#anchor]");
     };
     let Some(repo) = cwd() else {
-        return fail("cannot resolve working directory");
+        return fail("cannot get the working directory");
     };
     match refs::resolve(&repo, reference) {
         Ok(resolved) => {

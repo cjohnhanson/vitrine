@@ -1,15 +1,15 @@
-//! Reference resolution: `tisket:<id>#<anchor>` → a relative path an
-//! artifact can fetch with no resolver service.
+//! Reference resolution: `tisket:<id>#<anchor>` gives a relative path.
+//! The artifact gets that path with no resolver service.
 //!
-//! Resolution happens at authoring time; committed artifacts hold only
-//! relative paths. Artifacts live at `.vitrine/<slug>/`, a fixed depth,
-//! so every repo file is `../../<repo-relative-path>`.
+//! Resolution happens at authoring time, and a committed artifact holds
+//! relative paths only. An artifact is at `.vitrine/<slug>/`, a fixed
+//! depth, so each repo file is `../../<repo-relative-path>`.
 
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Resolved {
-    /// Path relative to the artifact directory (`../../…`).
+    /// The path, relative to the artifact directory (`../../…`).
     pub relative: String,
     pub anchor: Option<String>,
 }
@@ -26,9 +26,9 @@ impl std::fmt::Display for RefError {
         match self {
             Self::BadScheme(s) => write!(
                 f,
-                "unrecognized reference `{s}` (expected tisket:/zettel:/file:)"
+                "unknown reference `{s}` (use the tisket:, zettel:, or file: scheme)"
             ),
-            Self::NotFound(s) => write!(f, "no document found for `{s}`"),
+            Self::NotFound(s) => write!(f, "no document matches `{s}`"),
             Self::Ambiguous(s, hits) => write!(
                 f,
                 "`{s}` matches more than one document: {}",
@@ -38,7 +38,7 @@ impl std::fmt::Display for RefError {
     }
 }
 
-/// Resolve a scheme reference against a repo root.
+/// Resolve a scheme reference against the repo root.
 pub fn resolve(repo: &Path, reference: &str) -> Result<Resolved, RefError> {
     let (target, anchor) = match reference.split_once('#') {
         Some((t, a)) => (t, Some(a.to_string())),
@@ -68,7 +68,7 @@ pub fn resolve(repo: &Path, reference: &str) -> Result<Resolved, RefError> {
     })
 }
 
-/// Find `<id>.md` or `<id>-*.md` anywhere under `root/<store>/`.
+/// Find `<id>.md` or `<id>-*.md` in `root/<store>/` or below it.
 fn find_by_id(repo: &Path, store: &str, id: &str, reference: &str) -> Result<PathBuf, RefError> {
     let mut hits = Vec::new();
     let base = repo.join(store);

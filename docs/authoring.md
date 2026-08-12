@@ -2,41 +2,44 @@
 
 ## References
 
-`<md-section ref="PATH[#ANCHOR]">` — PATH is relative to the artifact
-directory (`.vitrine/<slug>/`), so repo files are `../../<path>`.
-Resolve `tisket:<id>`, `zettel:<id>`, and `file:<path>` schemes to
-relative paths with `vitrine resolve`; committed artifacts contain only
-relative paths and depend on no resolver.
+Write a reference as `<md-section ref="PATH[#ANCHOR]">`. PATH is
+relative to the artifact directory, which is `.vitrine/<slug>/`. Thus a
+repo file is `../../<path>`.
 
-Anchors are heading slugs: lowercase, alphanumerics kept, everything
-else collapsing to single hyphens (`## Design constraints (v2)` →
-`design-constraints-v2`). Duplicate headings get `-1`, `-2`… suffixes
-in document order. ATX headings only; a section spans from its heading
-to the next heading of the same or higher level. List a file's anchors
-with `vitrine extract <file>`.
+Use `vitrine resolve` to make a relative path from a `tisket:<id>`,
+`zettel:<id>`, or `file:<path>` scheme. A committed artifact holds
+relative paths only, so it needs no resolver.
+
+An anchor is a heading slug. The slug is lowercase. It keeps the
+alphanumerics, and it collapses each run of other characters to one
+hyphen. For example, `## Design constraints (v2)` gives
+`design-constraints-v2`. Duplicate headings get a `-1`, `-2`, … suffix
+in document order. vitrine reads ATX headings only. A section starts at
+its heading and stops at the next heading of the same level or a higher
+level. To list the anchors of a file, run `vitrine extract <file>`.
 
 Rules:
 
-- `<md-section>` elements must not nest.
-- Content inside the element is derived (baked by `vitrine sync`) —
-  never hand-edit it; it is replaced on every sync and by live render.
-- The canonical markdown always wins. If an artifact seems wrong, fix
-  the markdown and re-sync.
+- Do not nest one `<md-section>` element in another.
+- Do not edit the content inside the element. `vitrine sync` bakes that
+  content, and each sync and each live render replaces it.
+- The canonical markdown always wins. If an artifact shows the wrong
+  content, correct the markdown and run `vitrine sync` again.
 
 ## Response forms
 
-A `<form data-respond>` posts its fields as JSON to
-`/respond/<slug>` on submit (only under `vitrine serve`). Submissions
-are written to `.vitrine/<slug>/responses/<stamp>.json` and
-`latest.json`, and the server prints `response saved: <slug>` per
-submission for watchers. Name fields with stable references
-(`ab12#constraint-3`) so recorded decisions survive content
-reordering.
+A `<form data-respond>` sends its fields as JSON to `/respond/<slug>`
+on submit. This works under `vitrine serve` only. The server writes
+each submission to `.vitrine/<slug>/responses/<stamp>.json` and to
+`latest.json`. The server also writes one `response saved: <slug>` line
+to stdout for each submission. A watcher reads that line. Name each
+field with a stable reference, such as `ab12#constraint-3`. A recorded
+decision then survives a change to the order of the content.
 
 ## Rendering profile
 
-Plain CommonMark on both sides — comrak in the CLI, the vendored
-commonmark.js reference implementation in the browser — with YAML
-front matter stripped before rendering. No extensions, no emitted
-heading ids: renderer parity is what keeps the baked snapshot and the
-live render identical.
+Both renderers use plain CommonMark: comrak in the CLI, and the
+vendored commonmark.js reference implementation in the browser. Both
+renderers strip the YAML front matter before they render. There are no
+extensions, and neither renderer emits heading ids. This parity keeps
+the baked snapshot and the live render the same.

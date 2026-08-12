@@ -1,6 +1,6 @@
-//! `vitrine new <slug>`: create `.vitrine/<slug>/` with the page
-//! template and the runtime (vendored commonmark.js + the vitrine
-//! component code) as a self-contained directory.
+//! `vitrine new <slug>`: make `.vitrine/<slug>/` with the page template
+//! and the runtime. The runtime is the vendored commonmark.js plus the
+//! vitrine component code. The directory is self-contained.
 
 use std::path::{Path, PathBuf};
 
@@ -18,7 +18,10 @@ pub enum ScaffoldError {
 impl std::fmt::Display for ScaffoldError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::BadSlug(s) => write!(f, "slug `{s}` must be lowercase alphanumerics and hyphens"),
+            Self::BadSlug(s) => write!(
+                f,
+                "the slug `{s}` must use lowercase alphanumerics and hyphens only"
+            ),
             Self::Exists(p) => write!(f, "{} already exists", p.display()),
             Self::Io(e) => write!(f, "{e}"),
         }
@@ -35,7 +38,7 @@ pub fn slug_ok(slug: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
-/// Title-case a slug for the page heading: `q4-plan` → `Q4 plan`.
+/// Make the page heading from the slug: `q4-plan` gives `Q4 plan`.
 fn title_from(slug: &str) -> String {
     let mut words = slug.split('-');
     let first = words.next().unwrap_or_default();

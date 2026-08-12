@@ -1,13 +1,13 @@
-//! Baking: resolve every `<md-section>` in an artifact and write the
-//! rendered section into its light-DOM children.
+//! Baking: resolve each `<md-section>` element in an artifact, then
+//! write the rendered section into the light DOM children.
 //!
-//! The baked copy is derived, never hand-edited; `vitrine sync`
-//! regenerates it and the runtime replaces it with a live render when a
-//! server is present. Light DOM (not shadow) so transcluded content
-//! inherits the artifact's stylesheet.
+//! The baked copy is derived. Never edit it by hand. `vitrine sync`
+//! makes it again, and the runtime replaces it with a live render when
+//! a server is present. The content goes in the light DOM, not the
+//! shadow DOM, so it gets the stylesheet of the artifact.
 //!
-//! `<md-section>` elements must not nest — enforced here, documented in
-//! the authoring guide.
+//! `<md-section>` elements must not nest. This module applies the rule,
+//! and the authoring guide documents it.
 
 use std::path::Path;
 
@@ -28,8 +28,10 @@ impl std::fmt::Display for BakeError {
         match self {
             Self::Nested => write!(f, "<md-section> elements must not nest"),
             Self::Unclosed => write!(f, "unclosed <md-section> element"),
-            Self::MissingRef(tag) => write!(f, "md-section without a ref attribute: {tag}"),
-            Self::Unreadable(p) => write!(f, "could not read referenced file {p}"),
+            Self::MissingRef(tag) => {
+                write!(f, "the md-section element has no ref attribute: {tag}")
+            }
+            Self::Unreadable(p) => write!(f, "cannot read the referenced file {p}"),
             Self::AnchorNotFound { file, anchor } => {
                 write!(f, "anchor `{anchor}` not found in {file}")
             }
@@ -37,8 +39,9 @@ impl std::fmt::Display for BakeError {
     }
 }
 
-/// Rewrite `html`, filling each `<md-section ref="path[#anchor]">` with
-/// its rendered content. `artifact_dir` is the base for relative refs.
+/// Rewrite `html`. Fill each `<md-section ref="path[#anchor]">` element
+/// with its rendered content. `artifact_dir` is the base directory for
+/// a relative ref.
 pub fn bake(html: &str, artifact_dir: &Path) -> Result<String, BakeError> {
     let mut out = String::with_capacity(html.len());
     let mut rest = html;
@@ -90,7 +93,7 @@ pub fn bake(html: &str, artifact_dir: &Path) -> Result<String, BakeError> {
     Ok(out)
 }
 
-/// Minimal attribute extraction from an open tag: `name="value"`.
+/// Get one `name="value"` attribute from an open tag.
 fn attr(open_tag: &str, name: &str) -> Option<String> {
     let key = format!("{name}=\"");
     let start = open_tag.find(&key)? + key.len();
@@ -120,7 +123,7 @@ mod tests {
         assert!(baked.starts_with("<p>x</p>"));
         assert!(baked.ends_with("<p>y</p>"));
         let again = bake(&baked, &d).unwrap();
-        assert_eq!(baked, again, "re-sync replaces, never accumulates");
+        assert_eq!(baked, again, "a second sync replaces; it does not add");
     }
 
     #[test]
