@@ -1,0 +1,13 @@
+doc: "vitrine new creates a self-contained artifact directory."
+transitions:
+  - name: "new scaffolds page plus runtime, refuses repeats"
+    command: |
+      vitrine new demo-plan >/dev/null || { echo "FAIL: new"; exit 1; }
+      grep -q '<title>Demo plan</title>' .vitrine/demo-plan/index.html || { echo "FAIL: title"; exit 1; }
+      vitrine new demo-plan >/dev/null 2>&1; c=$?
+      [ "$c" -eq 1 ] || { echo "FAIL: repeat exit $c"; exit 1; }
+      vitrine new 'Bad Slug' >/dev/null 2>&1; c=$?
+      [ "$c" -eq 1 ] || { echo "FAIL: bad slug exit $c"; exit 1; }
+      echo SCAFFOLD_OK
+    target: ../scaffolded-done
+    stdout: "SCAFFOLD_OK\n"

@@ -1,0 +1,29 @@
+doc: |
+  CLI surface: resolve, extract, render/parity. No state changes.
+transitions:
+  - name: "resolve and extract answer from canonical markdown"
+    command: |
+      OUT=$(vitrine resolve 'tisket:ab12#goal')
+      [ "$OUT" = "../../.tisket/v0.1.0/ab12-demo-issue.md#goal" ] || { echo "FAIL resolve: $OUT"; exit 1; }
+      vitrine resolve 'tisket:zz99' >/dev/null 2>&1; c=$?
+      [ "$c" -eq 1 ] || { echo "FAIL missing-ref exit $c"; exit 1; }
+      A=$(vitrine extract .tisket/v0.1.0/ab12-demo-issue.md | tr '\n' ' ')
+      [ "$A" = "demo-issue goal goal-1 " ] || { echo "FAIL anchors: $A"; exit 1; }
+      S=$(vitrine extract .tisket/v0.1.0/ab12-demo-issue.md goal-1)
+      printf '%s' "$S" | grep -qF 'Duplicate heading section.' || { echo "FAIL dupe extract: $S"; exit 1; }
+      printf '%s' "$S" | grep -q 'not a heading' && { echo "FAIL fence leaked"; exit 1; }
+      echo TOOLS_OK
+    target: ../tools-checked
+    stdout: "TOOLS_OK\n"
+  - name: "rust and js renderers agree byte for byte"
+    command: |
+      . parity-env
+      vitrine render .tisket/v0.1.0/ab12-demo-issue.md > rust.html
+      parity-render .tisket/v0.1.0/ab12-demo-issue.md > js.html
+      if ! cmp -s rust.html js.html; then
+        echo "FAIL: renderers diverge"; diff rust.html js.html | head -10; exit 1
+      fi
+      rm rust.html js.html
+      echo PARITY_OK
+    target: ../tools-checked
+    stdout: "PARITY_OK\n"

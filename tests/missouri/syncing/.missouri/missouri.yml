@@ -1,0 +1,11 @@
+doc: "vitrine sync bakes transcluded sections; second run is a no-op."
+transitions:
+  - name: "sync bakes and is idempotent"
+    command: |
+      OUT=$(vitrine sync plan); [ "$OUT" = "synced plan" ] || { echo "FAIL: $OUT"; exit 1; }
+      OUT=$(vitrine sync plan); [ "$OUT" = "unchanged plan" ] || { echo "FAIL rerun: $OUT"; exit 1; }
+      grep -q '<h2>Goal</h2>' .vitrine/plan/index.html || { echo "FAIL: no baked heading"; exit 1; }
+      grep -q 'Duplicate heading' .vitrine/plan/index.html && { echo "FAIL: wrong section"; exit 1; }
+      echo SYNC_OK
+    target: ../synced
+    stdout: "SYNC_OK\n"

@@ -1,0 +1,28 @@
+env:
+  VITRINE_STAMP: "1000"
+  NO_COLOR: "1"
+setup:
+  - name: "build vitrine"
+    command: "cargo build --quiet --manifest-path ../../Cargo.toml"
+  - name: "link binary"
+    command: "mkdir -p .missouri/bin && ln -sf $(cd ../.. && pwd)/target/debug/vitrine .missouri/bin/vitrine"
+  - name: "parity helper"
+    command: |
+      mkdir -p .missouri/bin
+      cat > .missouri/bin/parity-render <<'SCRIPT'
+      #!/bin/sh
+      exec node -e '
+      const cm = require(process.env.CM);
+      const fs = require("fs");
+      let md = fs.readFileSync(process.argv[1], "utf8");
+      if (md.startsWith("---\n")) { const e = md.indexOf("\n---\n", 4); if (e !== -1) md = md.slice(e + 5); }
+      const p = new cm.Parser(); const r = new cm.HtmlRenderer();
+      process.stdout.write(r.render(p.parse(md)));
+      ' "$1"
+      SCRIPT
+      chmod +x .missouri/bin/parity-render
+      printf 'CM=%s/assets/commonmark.min.js\nexport CM\n' "$(cd ../.. && pwd)" > .missouri/bin/parity-env
+packages:
+  - jq
+  - curl
+  - nodejs
