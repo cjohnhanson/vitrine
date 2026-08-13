@@ -14,7 +14,7 @@ transitions:
       C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is -X POST -d '{}' http://127.0.0.1:4199/respond/../etc)
       [ "$C" = "400" ] || { echo "FAIL: slug traversal $C"; kill $SRV; exit 1; }
       C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is http://127.0.0.1:4199/../secrets)
-      [ "$C" = "400" ] || { echo "FAIL: path traversal $C"; kill $SRV; exit 1; }
+      [ "$C" = "404" ] || { echo "FAIL: path traversal $C"; kill $SRV; exit 1; }
       J=$(jq -r '."ab12#goal"' .vitrine/plan/latest.json)
       [ "$J" = "accept" ] || { echo "FAIL: latest.json $J"; kill $SRV; exit 1; }
       grep -q 'response saved: plan' server.log || { echo "FAIL: no watcher line"; kill $SRV; exit 1; }

@@ -81,16 +81,36 @@ pub fn sanitize(repo: &Path, url_path: &str) -> Option<PathBuf> {
             Component::RootDir | Component::Prefix(_) => return None,
         }
     }
-    Some(if joined.is_dir() {
+    let resolved = if joined.is_dir() {
         joined.join("index.html")
     } else {
         joined
-    })
+    };
+    // Serve only what an artifact needs: files under .vitrine/, and the
+    // markdown that a section transcludes. A repo holds secrets (.env),
+    // git internals (.git/), and source; none of that is an artifact
+    // asset, so the server never hands it out.
+    if servable(repo, &resolved) {
+        Some(resolved)
+    } else {
+        None
+    }
+}
+
+/// True when `path` is inside `.vitrine/` or is a markdown file. A
+/// transclusion target is always markdown, so this covers live
+/// transclusion while it refuses `.env`, `.git/HEAD`, and source.
+fn servable(repo: &Path, path: &Path) -> bool {
+    let under_vitrine = path.starts_with(repo.join(".vitrine"));
+    let is_markdown = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("md"));
+    under_vitrine || is_markdown
 }
 
 fn handle_get(repo: &Path, url: &str) -> Outcome {
     let Some(path) = sanitize(repo, url) else {
-        return Outcome::Error(400, "bad path");
+        return Outcome::Error(404, "not found");
     };
     std::fs::read(&path).map_or(Outcome::Error(404, "not found"), |bytes| {
         Outcome::File(bytes, mime_for(&path))
@@ -104,6 +124,14 @@ fn handle_respond(repo: &Path, slug: &str, request: &mut tiny_http::Request) -> 
     let artifact = repo.join(".vitrine").join(slug);
     if !artifact.is_dir() {
         return Outcome::Error(404, "no artifact with that slug");
+    }
+    // Reject a cross-origin write. A response comes from the served page
+    // itself, so its Origin, when present, is this loopback server. A
+    // page on another site must not post into the inbox.
+    if let Some(origin) = header_value(request, "Origin") {
+        if !is_local_origin(&origin) {
+            return Outcome::Error(403, "cross-origin request refused");
+        }
     }
     let mut body = String::new();
     if request
@@ -136,6 +164,24 @@ fn handle_respond(repo: &Path, slug: &str, request: &mut tiny_http::Request) -> 
     Outcome::Saved(slug.to_string())
 }
 
+fn header_value(request: &tiny_http::Request, field: &str) -> Option<String> {
+    request
+        .headers()
+        .iter()
+        .find(|h| h.field.as_str().as_str().eq_ignore_ascii_case(field))
+        .map(|h| h.value.as_str().to_string())
+}
+
+/// True when an Origin header names this loopback server. The host must
+/// end at a `:` (port) or the string end, so `127.0.0.1.evil.com` fails.
+fn is_local_origin(origin: &str) -> bool {
+    let Some(rest) = origin.strip_prefix("http://") else {
+        return false;
+    };
+    let host = rest.split(['/', ':']).next().unwrap_or("");
+    host == "127.0.0.1" || host == "localhost" || host == "[::1]"
+}
+
 fn mime_for(path: &Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
         Some("html") => "text/html; charset=utf-8",
@@ -164,13 +210,38 @@ mod tests {
             "the dots are percent-encoded"
         );
         assert_eq!(
-            sanitize(repo, "/a/b.js?v=1"),
-            Some(PathBuf::from("/repo/a/b.js"))
+            sanitize(repo, "/.vitrine/x/vitrine-runtime.js?v=1"),
+            Some(PathBuf::from("/repo/.vitrine/x/vitrine-runtime.js")),
+            "a file under .vitrine/ is served"
         );
         assert_eq!(
             sanitize(repo, "/.vitrine/x/../y/index.html"),
             Some(PathBuf::from("/repo/.vitrine/x/../y/index.html")),
             "an interior .. that stays under the root is allowed"
         );
+    }
+
+    #[test]
+    fn sanitize_serves_only_vitrine_and_markdown() {
+        let repo = Path::new("/repo");
+        // Transclusion targets are markdown, anywhere in the repo.
+        assert!(sanitize(repo, "/.tisket/v1/ab12-x.md").is_some());
+        assert!(sanitize(repo, "/docs/plan.md").is_some());
+        // Everything else is refused: secrets, git internals, source.
+        assert!(sanitize(repo, "/.env").is_none(), ".env must not be served");
+        assert!(
+            sanitize(repo, "/.git/HEAD").is_none(),
+            "git internals refused"
+        );
+        assert!(sanitize(repo, "/Cargo.toml").is_none(), "source refused");
+        assert!(sanitize(repo, "/src/main.rs").is_none());
+    }
+
+    #[test]
+    fn only_local_origins_may_post() {
+        assert!(is_local_origin("http://127.0.0.1:4114"));
+        assert!(is_local_origin("http://localhost:4114"));
+        assert!(!is_local_origin("https://evil.example.com"));
+        assert!(!is_local_origin("http://127.0.0.1.evil.com"));
     }
 }
