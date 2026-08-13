@@ -16,7 +16,7 @@ setup:
       const fs = require("fs");
       let md = fs.readFileSync(process.argv[1], "utf8");
       if (md.startsWith("---\n")) { const e = md.indexOf("\n---\n", 4); if (e !== -1) md = md.slice(e + 5); }
-      const p = new cm.Parser(); const r = new cm.HtmlRenderer();
+      const p = new cm.Parser(); const r = new cm.HtmlRenderer({ safe: true });
       process.stdout.write(r.render(p.parse(md)));
       ' "$1"
       SCRIPT

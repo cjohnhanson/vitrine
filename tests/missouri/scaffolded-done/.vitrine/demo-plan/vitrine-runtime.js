@@ -62,9 +62,13 @@
 		return lines.slice(start, end).join("\n").replace(/\s+$/, "") + "\n";
 	};
 
+	// safe mode suppresses raw HTML and dangerous URLs. It makes the live
+	// render match comrak, which strips raw HTML by default, so the baked
+	// page and the served page agree. It also closes the injection path:
+	// markup inside a referenced document cannot run in the served page.
 	const renderMd = (md) => {
 		const reader = new commonmark.Parser();
-		const writer = new commonmark.HtmlRenderer();
+		const writer = new commonmark.HtmlRenderer({ safe: true });
 		return writer.render(reader.parse(md));
 	};
 
