@@ -93,10 +93,27 @@ pub fn bake(html: &str, artifact_dir: &Path) -> Result<String, BakeError> {
     Ok(out)
 }
 
-/// Get one `name="value"` attribute from an open tag.
+/// Get one `name="value"` attribute from an open tag. The attribute
+/// name must sit at a boundary, so `ref` does not match `data-ref`.
 fn attr(open_tag: &str, name: &str) -> Option<String> {
     let key = format!("{name}=\"");
-    let start = open_tag.find(&key)? + key.len();
+    let mut from = 0;
+    let key_at = loop {
+        let rel = open_tag[from..].find(&key)?;
+        let at = from + rel;
+        // The char before the name must be whitespace, so `data-ref="`
+        // does not satisfy a request for `ref`.
+        let boundary = at == 0
+            || open_tag[..at]
+                .chars()
+                .next_back()
+                .is_some_and(char::is_whitespace);
+        if boundary {
+            break at;
+        }
+        from = at + key.len();
+    };
+    let start = key_at + key.len();
     let end = open_tag[start..].find('"')?;
     Some(open_tag[start..start + end].to_string())
 }
@@ -104,6 +121,15 @@ fn attr(open_tag: &str, name: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_ref_does_not_shadow_ref() {
+        let d = dir("dataref");
+        let html = r#"<md-section data-x="1" ref="doc.md#b" data-ref="wrong.md"></md-section>"#;
+        let baked = bake(html, &d).unwrap();
+        assert!(baked.contains("<h2>B</h2>"), "the real ref was baked: {baked}");
+    }
+
 
     fn dir(tag: &str) -> std::path::PathBuf {
         let d = std::env::temp_dir().join(format!("vitrine-bake-{tag}-{}", std::process::id()));

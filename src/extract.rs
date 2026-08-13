@@ -18,7 +18,7 @@ struct Heading {
 
 fn headings(lines: &[&str]) -> Vec<Heading> {
     let mut out = Vec::new();
-    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut used: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut in_fence: Option<String> = None;
 
     for (i, line) in lines.iter().enumerate() {
@@ -33,6 +33,12 @@ fn headings(lines: &[&str]) -> Vec<Heading> {
             in_fence = Some(trimmed[..3].to_string());
             continue;
         }
+        // Four or more leading spaces make an indented code block, so a
+        // `#` there is code, not a heading.
+        let indent = line.len() - trimmed.len();
+        if indent >= 4 {
+            continue;
+        }
         let hashes = trimmed.bytes().take_while(|b| *b == b'#').count();
         if hashes == 0 || hashes > 6 {
             continue;
@@ -42,14 +48,7 @@ fn headings(lines: &[&str]) -> Vec<Heading> {
             continue; // a hashtag, not a heading
         }
         let title = rest.trim().trim_end_matches(['#', ' ']);
-        let base = slugify(title);
-        let n = seen.entry(base.clone()).or_insert(0);
-        let slug = if *n == 0 {
-            base.clone()
-        } else {
-            format!("{base}-{n}")
-        };
-        *n += 1;
+        let slug = unique_slug(&slugify(title), &mut used);
         out.push(Heading {
             line_idx: i,
             level: hashes,
@@ -57,6 +56,23 @@ fn headings(lines: &[&str]) -> Vec<Heading> {
         });
     }
     out
+}
+
+/// A slug not yet used. A duplicate gets `-1`, `-2`, … and the suffix
+/// keeps climbing past any slug already taken, so `Alpha` / `Alpha 1` /
+/// `Alpha` never collide on `alpha-1`.
+fn unique_slug(base: &str, used: &mut std::collections::HashSet<String>) -> String {
+    if used.insert(base.to_string()) {
+        return base.to_string();
+    }
+    let mut n = 1;
+    loop {
+        let candidate = format!("{base}-{n}");
+        if used.insert(candidate.clone()) {
+            return candidate;
+        }
+        n += 1;
+    }
 }
 
 /// Extract the section that `anchor` addresses. The result is the
@@ -90,6 +106,37 @@ pub fn anchors(markdown: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indented_hash_is_code_not_a_heading() {
+        let doc = "# Real
+body
+
+    # indented four spaces is code
+
+## Next
+x
+";
+        assert_eq!(anchors(doc), vec!["real", "next"]);
+    }
+
+    #[test]
+    fn duplicate_slug_does_not_collide_with_explicit() {
+        // Alpha -> alpha, "Alpha 1" -> alpha-1, Alpha -> must be alpha-2,
+        // not a second alpha-1.
+        let doc = "# Alpha
+a
+
+# Alpha 1
+b
+
+# Alpha
+c
+";
+        assert_eq!(anchors(doc), vec!["alpha", "alpha-1", "alpha-2"]);
+        assert!(extract(doc, "alpha-2").unwrap().contains("\nc"));
+    }
+
 
     const DOC: &str = "---\ntitle: x\n---\n# Top\nintro\n\n## Alpha\na-body\n\n### Deep\nd-body\n\n## Beta\nb-body\n\n```sh\n# not a heading\n```\n\n## Alpha\ndupe-body\n";
 

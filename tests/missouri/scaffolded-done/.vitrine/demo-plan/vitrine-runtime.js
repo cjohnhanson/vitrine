@@ -30,8 +30,21 @@
 	const extract = (md, anchor) => {
 		const lines = stripFrontMatter(md).split("\n");
 		const heads = [];
-		const seen = new Map();
+		const used = new Set();
 		let fence = null;
+		// Match the Rust contract: a slug not yet used; a duplicate climbs
+		// past any slug already taken, so it never collides with an
+		// explicit one.
+		const uniqueSlug = (base) => {
+			if (!used.has(base)) {
+				used.add(base);
+				return base;
+			}
+			let n = 1;
+			while (used.has(`${base}-${n}`)) n += 1;
+			used.add(`${base}-${n}`);
+			return `${base}-${n}`;
+		};
 		lines.forEach((line, i) => {
 			const t = line.trimStart();
 			if (fence) {
@@ -42,16 +55,16 @@
 				fence = t.slice(0, 3);
 				return;
 			}
+			// Four or more leading spaces is an indented code block, so a
+			// `#` there is code, not a heading.
+			if (line.length - t.length >= 4) return;
 			const m = /^(#{1,6})(\s+.*|)$/.exec(t);
 			if (!m) return;
 			const title = m[2].trim().replace(/[# ]+$/, "");
-			const base = slugify(title);
-			const n = seen.get(base) || 0;
-			seen.set(base, n + 1);
 			heads.push({
 				i,
 				level: m[1].length,
-				slug: n === 0 ? base : `${base}-${n}`,
+				slug: uniqueSlug(slugify(title)),
 			});
 		});
 		const pos = heads.findIndex((h) => h.slug === anchor);
