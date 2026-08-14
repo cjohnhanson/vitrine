@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "Interactive artifacts for plaintext repos: transcluded markdown, portable HTML, a response inbox"
 license = "MIT"
+repository = "https://github.com/cjohnhanson/vitrine"
 
 [lints.rust]
 unsafe_code = "forbid"
