@@ -4,16 +4,26 @@ doc: |
 transitions:
   - name: "responses round-trip, junk refused"
     command: |
-      vitrine serve --port 4199 > server.log 2>&1 &
+      PORT=$((20000 + $$ % 20000))
+      vitrine serve --port $PORT > server.log 2>&1 &
       SRV=$!
-      until curl -sf http://127.0.0.1:4199/.vitrine/plan/index.html >/dev/null; do sleep 0.1; done
-      C=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{"ab12#goal":"accept"}' http://127.0.0.1:4199/respond/plan)
+      # Bound the readiness poll. An unbounded poll hangs the whole
+      # suite when the server dies at startup.
+      i=0
+      until curl -sf http://127.0.0.1:$PORT/.vitrine/plan/index.html >/dev/null; do
+        i=$((i+1))
+        if [ $i -ge 50 ]; then
+          echo "FAIL: server not ready after 5s"; cat server.log; kill $SRV 2>/dev/null; exit 1
+        fi
+        sleep 0.1
+      done
+      C=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{"ab12#goal":"accept"}' http://127.0.0.1:$PORT/respond/plan)
       [ "$C" = "200" ] || { echo "FAIL: post $C"; kill $SRV; exit 1; }
-      C=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d 'not json' http://127.0.0.1:4199/respond/plan)
+      C=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d 'not json' http://127.0.0.1:$PORT/respond/plan)
       [ "$C" = "400" ] || { echo "FAIL: non-json $C"; kill $SRV; exit 1; }
-      C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is -X POST -d '{}' http://127.0.0.1:4199/respond/../etc)
+      C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is -X POST -d '{}' http://127.0.0.1:$PORT/respond/../etc)
       [ "$C" = "400" ] || { echo "FAIL: slug traversal $C"; kill $SRV; exit 1; }
-      C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is http://127.0.0.1:4199/../secrets)
+      C=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is http://127.0.0.1:$PORT/../secrets)
       [ "$C" = "404" ] || { echo "FAIL: path traversal $C"; kill $SRV; exit 1; }
       J=$(jq -r '."ab12#goal"' .vitrine/plan/latest.json)
       [ "$J" = "accept" ] || { echo "FAIL: latest.json $J"; kill $SRV; exit 1; }
