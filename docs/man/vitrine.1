@@ -1,0 +1,62 @@
+.Dd August 14, 2026
+.Dt VITRINE 1
+.Os
+.Sh NAME
+.Nm vitrine
+.Nd HTML artifacts that transclude markdown sections
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+builds and serves HTML artifacts whose
+.Ql md-section
+elements transclude sections of markdown documents.
+The markdown stays the single source; the artifact renders it.
+A baked copy works as a plain file, and the server upgrades it to a
+live render with a response inbox.
+.Sh COMMANDS
+.Bl -tag -width "extract <file>"
+.It Cm new Ar slug
+Scaffold an artifact directory with the runtime under
+.Pa .vitrine/<slug>/ .
+.It Cm sync Op Ar slug
+Bake each
+.Ql md-section
+element from its source.
+Without
+.Ar slug ,
+sync every artifact.
+.It Cm serve Op Fl -port Ar n
+Serve the artifacts and the response inbox on 127.0.0.1.
+Only
+.Pa .vitrine/
+content and markdown files are served.
+A POST to
+.Pa /respond/<slug>
+lands in the artifact's
+.Pa responses/
+directory and
+.Pa latest.json .
+.It Cm resolve Ar ref
+Resolve a
+.Ql tisket: ,
+.Ql zettel: ,
+or
+.Ql file:
+ref, with an optional
+.Ql #anchor ,
+to its source file.
+.It Cm extract Ar file Op Ar anchor
+List the anchors in a markdown file, or print one section.
+.It Cm render Ar file
+Render a markdown file to HTML on stdout.
+.It Cm docs Op Ar page
+Print the bundled documentation.
+.El
+.Sh EXIT STATUS
+0 on success, 1 on any failure.
+.Sh SEE ALSO
+.Xr tisket 1 ,
+.Xr zettel 1

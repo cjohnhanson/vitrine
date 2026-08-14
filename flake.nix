@@ -79,6 +79,13 @@
             commonArgs
             // {
               inherit cargoArtifacts;
+              # The CLI is parsed by hand (the never-exit-2 rule keeps
+              # clap out), so the man page is hand-written in docs/man/
+              # and installed here.
+              postInstall = ''
+                mkdir -p $out/share/man/man1
+                cp docs/man/vitrine.1 $out/share/man/man1/
+              '';
               # Unit tests only in the nix check; the missouri suite runs in
               # development (it needs the missouri binary, which lives in its
               # own derivation).

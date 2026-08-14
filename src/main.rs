@@ -20,12 +20,37 @@ fn main() -> ExitCode {
         Some("extract") => run_extract(&args[1..]),
         Some("render") => run_render(&args[1..]),
         Some("docs") => run_docs(&args[1..]),
+        Some("--version" | "-V" | "version") => {
+            println!("vitrine {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        Some("--help" | "-h" | "help") => {
+            println!("{USAGE}");
+            ExitCode::SUCCESS
+        }
         Some(other) => fail(&format!(
             "unknown command `{other}` (available: new, sync, serve, resolve, extract, render, docs)"
         )),
         None => fail("usage: vitrine <new|sync|serve|resolve|extract|render|docs>"),
     }
 }
+
+const USAGE: &str = "vitrine — HTML artifacts that transclude markdown sections
+
+Usage: vitrine <command> [options]
+
+Commands:
+  new <slug>         Scaffold an artifact directory with the runtime
+  sync [slug]        Bake each md-section element from its source
+  serve [--port N]   Serve the artifacts and the response inbox
+  resolve <ref>      Resolve a tisket:, zettel:, or file: ref to its source
+  extract <file>     List the anchors, or print one section
+  render <file>      Render a markdown file or section to HTML
+  docs [page]        Print the bundled documentation
+
+Options:
+  -h, --help         Print this help
+  -V, --version      Print the version";
 
 fn fail(msg: &str) -> ExitCode {
     eprintln!("vitrine: {msg}");
