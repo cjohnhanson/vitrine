@@ -128,11 +128,10 @@ fn handle_respond(repo: &Path, slug: &str, request: &mut tiny_http::Request) -> 
     // Reject a cross-origin write. A response comes from the served page
     // itself, so its Origin, when present, is this loopback server. A
     // page on another site must not post into the inbox.
-    if let Some(origin) = header_value(request, "Origin") {
-        if !is_local_origin(&origin) {
+    if let Some(origin) = header_value(request, "Origin")
+        && !is_local_origin(&origin) {
             return Outcome::Error(403, "cross-origin request refused");
         }
-    }
     let mut body = String::new();
     if request
         .as_reader()
